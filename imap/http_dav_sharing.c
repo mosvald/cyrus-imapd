@@ -79,7 +79,7 @@ static int notify_get(struct transaction_t *txn, struct mailbox *mailbox,
                       struct mime_type_t *mime);
 static int notify_put(struct transaction_t *txn, void *obj,
                       struct mailbox *mailbox, const char *resource,
-                      void *davdb, unsigned flags);
+                      const char *uid, void *davdb, unsigned flags);
 
 static int propfind_restype(const xmlChar *name, xmlNsPtr ns,
                             struct propfind_ctx *fctx,
@@ -764,7 +764,7 @@ HIDDEN int dav_send_notification(xmlDocPtr doc,
     spool_cache_header(xstrdup("Content-Type"),
                        xstrdup(DAVNOTIFICATION_CONTENT_TYPE), txn.req_hdrs);
 
-    r = notify_put(&txn, doc, mailbox, resource, webdavdb, 0);
+    r = notify_put(&txn, doc, mailbox, resource, NULL, webdavdb, 0);
     if (r != HTTP_CREATED && r != HTTP_NO_CONTENT) {
         syslog(LOG_ERR,
                "dav_send_notification: notify_put(%s, %s) failed: %s",
@@ -1040,6 +1040,7 @@ HIDDEN int notify_post(struct transaction_t *txn)
 /* Perform a PUT request on a WebDAV notification resource */
 static int notify_put(struct transaction_t *txn, void *obj,
                       struct mailbox *mailbox, const char *resource,
+                      const char *uid __attribute__((unused)),
                       void *destdb, unsigned flags __attribute__((unused)))
 {
     struct webdav_db *db = (struct webdav_db *)destdb;

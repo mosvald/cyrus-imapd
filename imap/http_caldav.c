@@ -164,7 +164,7 @@ static int caldav_check_precond(struct transaction_t *txn,
 static int caldav_acl(struct transaction_t *txn, xmlNodePtr priv, int *rights);
 static int caldav_copy(struct transaction_t *txn, void *obj,
                        struct mailbox *dest_mbox, const char *dest_rsrc,
-                       void *destdb, unsigned flags);
+                       const char *uid, void *destdb, unsigned flags);
 static int caldav_delete_cal(struct transaction_t *txn,
                              struct mailbox *mailbox,
                              struct index_record *record, void *data);
@@ -177,7 +177,7 @@ static int caldav_post(struct transaction_t *txn);
 static int caldav_patch(struct transaction_t *txn, void *obj);
 static int caldav_put(struct transaction_t *txn, void *obj,
                       struct mailbox *mailbox, const char *resource,
-                      void *destdb, unsigned flags);
+                      const char *uid, void *destdb, unsigned flags);
 static int caldav_import(struct transaction_t *txn, void *obj,
                          struct mailbox *mailbox, void *destdb,
                          xmlNodePtr root, xmlNsPtr *ns, unsigned flags);
@@ -1200,6 +1200,7 @@ static int _scheduling_enabled(struct transaction_t *txn,
  */
 static int caldav_copy(struct transaction_t *txn, void *obj,
                        struct mailbox *dest_mbox, const char *dest_rsrc,
+                       const char *uid __attribute__((unused)),
                        void *destdb, unsigned flags)
 {
     int r;
@@ -2779,7 +2780,7 @@ static int caldav_post_attach(struct transaction_t *txn, int rights)
 
         /* Store the new/updated attachment using WebDAV callback */
         ret = webdav_params.put.proc(txn, &txn->req_body.payload,
-                                     attachments, uid, webdavdb, 0);
+                                     attachments, uid, uid, webdavdb, 0);
 
         switch (ret) {
         case HTTP_CREATED:
@@ -3238,7 +3239,7 @@ static void import_resource(const char *uid, void *data, void *rock)
                  "%s.ics", makeuuid());
 
     r = caldav_put(txn, newical, irock->mailbox,
-                   txn->req_tgt.resource, irock->caldavdb, irock->flags);
+                   txn->req_tgt.resource, NULL, irock->caldavdb, irock->flags);
 
     switch (r) {
     case HTTP_OK:
@@ -3539,7 +3540,7 @@ static int caldav_patch(struct transaction_t *txn, void *obj)
  */
 static int caldav_put(struct transaction_t *txn, void *obj,
                       struct mailbox *mailbox, const char *resource,
-                      void *destdb, unsigned flags)
+                      const char *uid, void *destdb, unsigned flags)
 {
     int ret = 0;
     struct caldav_db *db = (struct caldav_db *)destdb;
@@ -3549,7 +3550,7 @@ static int caldav_put(struct transaction_t *txn, void *obj,
     icalcomponent_kind kind;
     icaltimetype dtstart, dtend;
     icalproperty *prop, *rrule = NULL;
-    const char *uid, *organizer = NULL;
+    const char *organizer = NULL;
     strarray_t schedule_addresses = STRARRAY_INITIALIZER;
     struct buf buf = BUF_INITIALIZER;
     struct caldav_data *cdata;
