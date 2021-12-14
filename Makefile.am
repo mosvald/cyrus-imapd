@@ -1330,6 +1330,7 @@ imap_httpd_SOURCES += \
 	imap/jmap_mailbox.c \
 	imap/jmap_mdn.c \
 	imap/jmap_notes.c \
+	imap/jmap_files.c \
 	imap/jmap_push.c \
 	imap/jmap_push.h \
 	imap/jmap_util.c \

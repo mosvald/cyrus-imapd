@@ -244,6 +244,7 @@ extern void jmap_calendar_init(jmap_settings_t *settings);
 extern void jmap_vacation_init(jmap_settings_t *settings);
 extern void jmap_backup_init(jmap_settings_t *settings);
 extern void jmap_notes_init(jmap_settings_t *settings);
+extern void jmap_files_init(jmap_settings_t *settings);
 extern void jmap_sieve_init(jmap_settings_t *settings);
 
 extern void jmap_core_capabilities(json_t *account_capabilities);
@@ -256,6 +257,7 @@ extern void jmap_calendar_capabilities(json_t *account_capabilities);
 extern void jmap_vacation_capabilities(json_t *account_capabilities);
 extern void jmap_backup_capabilities(json_t *account_capabilities);
 extern void jmap_notes_capabilities(json_t *account_capabilities);
+extern void jmap_files_capabilities(json_t *account_capabilities);
 extern void jmap_sieve_capabilities(json_t *account_capabilities);
 
 extern void jmap_accounts(json_t *accounts, json_t *primary_accounts);
