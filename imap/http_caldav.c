@@ -2754,9 +2754,8 @@ static int caldav_post_attach(struct transaction_t *txn, int rights)
 
     if (op == ATTACH_REMOVE) aprop = NULL;
     else {
-        /* SHA1 of content used as resource UID, resource name, & managed-id */
-        static char uid[2*MESSAGE_GUID_SIZE+1];
-        struct message_guid guid;
+        /* UUID used as resource UID, resource name, & managed-id */
+        const char *uid = makeuuid();
 
         /* Read body */
         txn->req_body.flags |= BODY_DECODE;
@@ -2772,11 +2771,6 @@ static int caldav_post_attach(struct transaction_t *txn, int rights)
             ret = HTTP_BAD_REQUEST;
             goto done;
         }
-
-        /* Generate UID of body content */
-        message_guid_generate(&guid, buf_base(&txn->req_body.payload),
-                              buf_len(&txn->req_body.payload));
-        strcpy(uid, message_guid_encode(&guid));
 
         /* Store the new/updated attachment using WebDAV callback */
         ret = webdav_params.put.proc(txn, &txn->req_body.payload,
