@@ -153,11 +153,13 @@
     " filename TEXT,"                                                   \
     " type TEXT,"                                                       \
     " subtype TEXT,"                                                    \
-    " res_uid TEXT,"                                                    \
+    " contentid TEXT,"                                                  \
+    " res_uid TEXT NOT NULL,"                                           \
     " ref_count INTEGER,"                                               \
     " alive INTEGER,"                                                   \
     " UNIQUE( mailbox, imap_uid ),"                                     \
     " UNIQUE( mailbox, resource ) );"                                   \
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_obj_resuid ON dav_objs ( res_uid );"
 
 #define CMD_CREATE_CALCACHE                                             \
     "CREATE TABLE IF NOT EXISTS ical_jmapcache ("                       \
@@ -243,6 +245,12 @@
 
 #define CMD_DBUPGRADEv14 CMD_CREATE_SIEVE
 
+#define CMD_DBUPGRADEv15                                        \
+    "ALTER TABLE dav_objs RENAME COLUMN res_uid TO contentid;"  \
+    "ALTER TABLE dav_objs ADD COLUMN res_uid TEXT NOT NULL DEFAULT \"\";" \
+    "UPDATE dav_objs SET res_uid = lower(hex(randomblob(16)));" \
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_obj_resuid ON dav_objs ( res_uid );"
+
 static int sievedb_upgrade(sqldb_t *db);
 
 struct sqldb_upgrade davdb_upgrade[] = {
@@ -259,10 +267,11 @@ struct sqldb_upgrade davdb_upgrade[] = {
   /* Don't upgrade to version 12.  This was an intermediate Sieve DB version */
   /* Don't upgrade to version 13.  This was an intermediate Sieve DB version */
   { 14, CMD_DBUPGRADEv14, &sievedb_upgrade },
+  { 15, CMD_DBUPGRADEv15, NULL },
   { 0, NULL, NULL }
 };
 
-#define DB_VERSION 14
+#define DB_VERSION 15
 
 static sqldb_t *reconstruct_db;
 
