@@ -239,8 +239,10 @@ typedef struct jstimezones {
 }
 
 /* Forward declarations */
-static json_t *calendarevent_from_ical(icalcomponent *comp, hash_table *props,
-                                       int is_override, ptrarray_t *overrides,
+static json_t *calendarevent_from_ical(icalcomponent *comp,
+                                       icalcomponent *maincomp,
+                                       hash_table *props,
+                                       ptrarray_t *overrides,
                                        jstimezones_t *jtzcache,
                                        struct jmapical_ctx *jmapctx);
 
@@ -1788,7 +1790,7 @@ overrides_from_ical(icalcomponent *comp, ptrarray_t *icaloverrides,
         icalcomponent *excomp = ptrarray_nth(icaloverrides, i);
 
         /* Convert VEVENT exception to JMAP */
-        json_t *ex = calendarevent_from_ical(excomp, NULL, 1, NULL, jstzones, jmapctx);
+        json_t *ex = calendarevent_from_ical(excomp, comp, NULL, NULL, jstzones, jmapctx);
         if (!ex) continue;
 
         /* Recurrence-id */
@@ -3318,8 +3320,10 @@ static json_t *timezones_from_ical(json_t *jsevent, jstimezones_t *jstzones)
  * props:  if not NULL, only convert properties named as keys
  */
 static json_t*
-calendarevent_from_ical(icalcomponent *comp, hash_table *props,
-                        int is_override, ptrarray_t *overrides,
+calendarevent_from_ical(icalcomponent *comp,
+                        icalcomponent *maincomp,
+                        hash_table *props,
+                        ptrarray_t *overrides,
                         jstimezones_t *jstzones,
                         struct jmapical_ctx *jmapctx)
 {
@@ -3328,6 +3332,7 @@ calendarevent_from_ical(icalcomponent *comp, hash_table *props,
     json_t *event = json_pack("{s:s}", "@type", "Event");
     struct buf buf = BUF_INITIALIZER;
     jstimezones_t myjstzones = JSTIMEZONES_INITIALIZER;
+    int is_override = !!maincomp;
 
     /* Read custom timezones */
     if (!jstzones) {
@@ -3603,8 +3608,11 @@ calendarevent_from_ical(icalcomponent *comp, hash_table *props,
 
     /* privacy */
     if (jmap_wantprop(props, "privacy")) {
+        // JSCalendar forbids to override privacy in overrides,
+        // so read the property value from the main component.
+        icalcomponent *fromcomp = maincomp ? maincomp : comp;
         const char *prv = "public";
-        if ((prop = icalcomponent_get_first_property(comp, ICAL_CLASS_PROPERTY))) {
+        if ((prop = icalcomponent_get_first_property(fromcomp, ICAL_CLASS_PROPERTY))) {
             switch (icalproperty_get_class(prop)) {
                 case ICAL_CLASS_CONFIDENTIAL:
                     prv = "secret";
@@ -3800,8 +3808,8 @@ jmapical_tojmap_all(icalcomponent *ical, hash_table *props,
             const char *uid = icalcomponent_get_uid(comp);
             overrides = hash_lookup(uid, &overrides_by_uid);
         }
-        json_t *jsevent = calendarevent_from_ical(comp,
-                props, 0, overrides, NULL, jmapctx);
+        json_t *jsevent = calendarevent_from_ical(comp, NULL,
+                props, overrides, NULL, jmapctx);
         if (jsevent) json_array_append_new(events, jsevent);
     }
 
@@ -6781,16 +6789,19 @@ static void overrides_to_ical(icalcomponent *comp,
             json_t *jval;
             json_object_foreach(joverride, key, jval) {
                 if (!strcmp(key, "@type") ||
-                    !strcmp(key, "uid") ||
-                    !strcmp(key, "relatedTo") ||
-                    !strcmp(key, "prodId") ||
-                    !strcmp(key, "method") ||
-                    !strcmp(key, "recurrenceId") ||
-                    !strcmp(key, "recurrenceRules") ||
-                    !strcmp(key, "recurrenceOverrides") ||
                     !strcmp(key, "excludedRecurrenceRules") ||
-                    !strcmp(key, "excluded") ||
-                    !strcmp(key, "replyTo")) {
+                    !strcmp(key, "method") ||
+                    !strcmp(key, "privacy") ||
+                    !strcmp(key, "prodId") ||
+                    !strcmp(key, "recurrenceId") ||
+                    !strcmp(key, "recurrenceIdTimeZone") ||
+                    !strcmp(key, "recurrenceOverrides") ||
+                    !strcmp(key, "recurrenceRules") ||
+                    !strcmp(key, "relatedTo") ||
+                    !strcmp(key, "replyTo") ||
+                    !strcmp(key, "sentBy") ||
+                    !strcmp(key, "timeZones") ||
+                    !strcmp(key, "uid")) {
 
                     json_object_del(myoverride, key);
                 }
