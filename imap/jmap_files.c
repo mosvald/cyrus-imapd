@@ -56,6 +56,7 @@
 #include "acl.h"
 #include "append.h"
 #include "cyr_qsort_r.h"
+#include "dav_util.h"
 #include "hash.h"
 #include "http_jmap.h"
 #include "http_proxy.h"
