@@ -4344,6 +4344,8 @@ static int createevent_toical(jmap_req_t *req,
     struct buf buf = BUF_INITIALIZER;
     int r = 0;
 
+    jmapctx->to_ical.serverset = create->serverset;
+
     // Validate extension properties
     json_t *jval = json_object_get(create->jsevent, "isDraft");
     if (jval && !json_is_boolean(jval)) {
@@ -4389,26 +4391,6 @@ static int createevent_toical(jmap_req_t *req,
             r = IMAP_INTERNAL;
             goto done;
         }
-        buf_reset(&buf);
-    }
-
-    // Set created/updated
-    if (!json_object_get(create->jsevent, "created") ||
-        !json_object_get(create->jsevent, "updated")) {
-
-        struct jmapical_datetime dt = JMAPICAL_DATETIME_INITIALIZER;
-        icaltimezone *utc = icaltimezone_get_utc_timezone();
-        jmapical_datetime_from_icaltime(icaltime_current_time_with_zone(utc), &dt);
-        jmapical_utcdatetime_as_string(&dt, &buf);
-
-        if (!json_object_get(create->jsevent, "created"))
-            json_object_set_new(create->jsevent, "created",
-                    json_string(buf_cstring(&buf)));
-
-        if (!json_object_get(create->jsevent, "updated"))
-            json_object_set_new(create->jsevent, "updated",
-                    json_string(buf_cstring(&buf)));
-
         buf_reset(&buf);
     }
 
@@ -5243,6 +5225,7 @@ static int updateevent_apply_patch(jmap_req_t *req,
 
     // Read old event
     struct jmapical_ctx *jmapctx = jmapical_context_new(req);
+    jmapctx->to_ical.serverset = update;
     context_begin_cdata(jmapctx, mbentry, cdata);
     old_event = jmapical_tojmap(myoldical, NULL, jmapctx);
     if (!old_event) {
@@ -5250,6 +5233,8 @@ static int updateevent_apply_patch(jmap_req_t *req,
         goto done;
     }
     *old_eventptr = json_deep_copy(old_event);
+
+
     json_object_del(old_event, "updated");
 
     // Apply the patch
@@ -5257,6 +5242,7 @@ static int updateevent_apply_patch(jmap_req_t *req,
         /* Update or create an override */
         updateevent_apply_patch_override(eid, old_event, event_patch,
                 myoldical, floatingtz, &new_event, invalid, err);
+        if (!new_event) goto done;
     }
     else {
         // Validate privacy on shared calendars
@@ -5271,6 +5257,7 @@ static int updateevent_apply_patch(jmap_req_t *req,
         /* Update a regular event or standalone instance */
         updateevent_apply_patch_event(old_event, event_patch,
                 myoldical, floatingtz, &new_event, invalid, err);
+        if (!new_event) goto done;
     }
 
     updateevent_validate_ids(old_event, new_event, invalid);
@@ -7363,6 +7350,7 @@ static void _calendarevent_copy(jmap_req_t *req,
 
     /* Patch JMAP event */
     struct jmapical_ctx *jmapctx = jmapical_context_new(req);
+    jmapctx->to_ical.no_sanitize_timestamps = 1;
     context_begin_cdata(jmapctx, mbentry, cdata);
     json_t *src_event = jmapical_tojmap(src_ical, NULL, jmapctx);
     if (src_event) {
